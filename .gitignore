@@ -1,0 +1,67 @@
+# =========================
+# 1. Terraform
+# =========================
+# 테라폼 플러그인 및 모듈 설치 폴더
+.terraform/
+
+# 테라폼 상태 파일
+*.tfstate
+*.tfstate.backup
+
+# 민감한 변수 정의 파일
+*.tfvars
+*.tfvars.json
+
+# 실행 계획 파일
+*.tfplan
+
+# CLI 설정 파일
+.terraformrc
+terraform.rc
+
+
+# =========================
+# 2. Key & Identity
+# =========================
+# 구글 서비스 계정 키
+service_account.json
+*-key.json
+*.json 
+
+# SSH 키 페어 (서버 접속용 열쇠)
+mervis-key
+mervis-key.pub
+*.pem
+*.key
+*.pub
+id_rsa
+id_rsa.pub
+
+# 환경 변수 파일
+.env
+
+
+# =========================
+# 3. Logs & Crash
+# =========================
+crash.log
+crash.*.log
+*.log
+
+
+# =========================
+# 4. OS & IDE (지저분한 파일 제거)
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+
+# =========================
+# 5. Python (스크립트 확장 대비)
+# =========================
+__pycache__/
+*.py[cod]
+venv/
+env/
