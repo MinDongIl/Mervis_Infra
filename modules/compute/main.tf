@@ -24,6 +24,19 @@ resource "google_project_iam_member" "secret_accessor" {
 # 공통 Startup Script 정의 (재사용을 위해 변수로 빼거나 locals 사용 가능하지만, 여기선 직관성을 위해 각각 넣음)
 # Training은 mervis_server_manager.py 실행, Serving은 app.py 실행
 
+# 로드밸런서용 헬스 체크와 별개로, 관리자가 서버 생사를 판단하는 기준
+resource "google_compute_health_check" "autohealing" {
+  name                = "mervis-autohealing-check"
+  check_interval_sec  = 5
+  timeout_sec         = 5
+  healthy_threshold   = 2
+  unhealthy_threshold = 2 # 10초 연속 응답 없으면 사망 판정
+
+  http_health_check {
+    port = 80 # 컨테이너가 80(또는 8080) 포트로 응답하는지 감시
+  }
+}
+
 # ==========================================
 # 2. Serving Zone (MIG + Auto-scaling)
 # ==========================================
