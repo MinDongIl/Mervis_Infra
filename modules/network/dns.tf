@@ -5,8 +5,7 @@ resource "google_dns_managed_zone" "mervis_zone" {
   name        = "mervis-cloud-zone"
   dns_name    = "mervis.cloud."
   description = "Mervis Trading System DNS Zone"
-  
-  visibility = "public"
+  visibility  = "public"
 
   labels = {
     env = "prod"
@@ -14,9 +13,27 @@ resource "google_dns_managed_zone" "mervis_zone" {
 }
 
 # ==============================================================================
-# Output (네임서버 주소 출력용)
+# DNS Records (도메인 연결)
 # ==============================================================================
+# 1. mervis.cloud -> 로드밸런서 IP
+resource "google_dns_record_set" "mervis_root" {
+  name         = "mervis.cloud."
+  managed_zone = google_dns_managed_zone.mervis_zone.name
+  type         = "A"
+  ttl          = 300
+  rrdatas      = [var.lb_ip_address]
+}
+
+# 2. www.mervis.cloud -> 로드밸런서 IP
+resource "google_dns_record_set" "mervis_www" {
+  name         = "www.mervis.cloud."
+  managed_zone = google_dns_managed_zone.mervis_zone.name
+  type         = "A"
+  ttl          = 300
+  rrdatas      = [var.lb_ip_address]
+}
+
+# Output
 output "name_servers" {
-  description = "도메인 등록기관(가비아 등)에 입력해야 할 구글 네임서버 주소 목록"
-  value       = google_dns_managed_zone.mervis_zone.name_servers
+  value = google_dns_managed_zone.mervis_zone.name_servers
 }
