@@ -16,12 +16,12 @@ resource "google_project_iam_member" "bq_editor" {
   member  = "serviceAccount:${google_service_account.sa.email}"
 }
 
-# [INF-04 보안 테스트] Secret Manager 접근 권한 회수 (주석 처리)
-# resource "google_project_iam_member" "secret_accessor" {
-#   project = var.project_id
-#   role    = "roles/secretmanager.secretAccessor"
-#   member  = "serviceAccount:${google_service_account.sa.email}"
-# }
+# [INF-04 보안 테스트 종료] Secret Manager 접근 권한 복구 (주석 해제)
+resource "google_project_iam_member" "secret_accessor" {
+  project = var.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.sa.email}"
+}
 
 # 공통 Startup Script 정의 (재사용을 위해 변수로 빼거나 locals 사용 가능하지만, 여기선 직관성을 위해 각각 넣음)
 # Training은 mervis_server_manager.py 실행, Serving은 app.py 실행
