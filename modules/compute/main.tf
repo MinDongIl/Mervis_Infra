@@ -16,7 +16,7 @@ resource "google_project_iam_member" "bq_editor" {
   member  = "serviceAccount:${google_service_account.sa.email}"
 }
 
-# [INF-04 보안 테스트 종료] Secret Manager 접근 권한 복구 (주석 해제)
+# [INF-04 보안 테스트 종료] Secret Manager 접근 권한 복구 (주석 해제 완료)
 resource "google_project_iam_member" "secret_accessor" {
   project = var.project_id
   role    = "roles/secretmanager.secretAccessor"
@@ -75,6 +75,10 @@ resource "google_compute_instance_template" "serving_tpl" {
     #!/bin/bash
     apt-get update && apt-get install -y docker.io
     gcloud auth configure-docker ${var.region}-docker.pkg.dev --quiet
+    
+    # [INF-05] GCP Ops Agent 설치 (디스크/메모리 지표 수집용)
+    curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+    bash add-google-cloud-ops-agent-repo.sh --also-install
     
     # 시크릿 로드
     export KIS_APP_KEY_REAL=$(gcloud secrets versions access latest --secret="mervis-kis-app-key-real")
@@ -156,6 +160,10 @@ resource "google_compute_instance" "brain_vm" {
     #!/bin/bash
     apt-get update && apt-get install -y docker.io
     gcloud auth configure-docker ${var.region}-docker.pkg.dev --quiet
+    
+    # [INF-05] GCP Ops Agent 설치 (디스크/메모리 지표 수집용)
+    curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+    bash add-google-cloud-ops-agent-repo.sh --also-install
     
     # 시크릿 로드
     export KIS_APP_KEY_REAL=$(gcloud secrets versions access latest --secret="mervis-kis-app-key-real")
