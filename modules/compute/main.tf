@@ -123,7 +123,7 @@ resource "google_compute_region_autoscaler" "serving_autoscaler" {
   target = google_compute_region_instance_group_manager.serving_mig.id
 
   autoscaling_policy {
-    max_replicas    = 10
+    max_replicas    = 20 # 대규모 부하 테스트를 위해 10 -> 20으로 상향 조정
     min_replicas    = 1
     cooldown_period = 60
 
