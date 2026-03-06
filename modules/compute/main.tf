@@ -151,7 +151,7 @@ resource "google_compute_region_autoscaler" "serving_autoscaler" {
     # 낮 시간대에는 대규모 트래픽 대비 5대 예열
     scaling_schedules {
       name                  = "business-hours-prewarming"
-      min_required_replicas = 5  # 주간 5대 유지
+      min_required_replicas = 4  # 주간 4대 유지
       schedule              = "0 9 * * 1-5" # 평일 오전 9시
       time_zone             = "Asia/Seoul"
       duration_sec          = 32400 # 9시간 지속 (오후 6시까지)
