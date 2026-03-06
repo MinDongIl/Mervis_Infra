@@ -21,7 +21,7 @@ resource "google_compute_instance" "locust_master" {
 
   boot_disk {
     initialize_params {
-      image = "debian-cloud/debian-11"
+      image = "ubuntu-os-cloud/ubuntu-2204-lts"
     }
   }
 
@@ -30,14 +30,19 @@ resource "google_compute_instance" "locust_master" {
     access_config {} 
   }
 
-  metadata_startup_script = <<-EOF
-    #!/bin/bash
-    apt-get update
-    apt-get install -y python3-pip
-    pip3 install locust
-    
-    # 예매 시나리오 파이썬 파일 생성
-    cat << 'FILE' > /home/locustfile.py
+  # replace 함수를 사용해 윈도우 줄바꿈 문자(\r)제거
+  metadata_startup_script = replace(<<-EOF
+#!/bin/bash
+export DEBIAN_FRONTEND=noninteractive
+
+# Docker 설치
+apt-get update -y
+apt-get install -y docker.io
+
+mkdir -p /mnt/locust
+
+# 파이썬 파일 생성
+cat << 'FILE' > /mnt/locust/locustfile.py
 import time
 from locust import HttpUser, task, between
 
@@ -65,26 +70,13 @@ class WebsiteUser(HttpUser):
         self.client.get("/api/exit", name="/api/exit")
 FILE
 
-    # Systemd 서비스로 Master 등록
-    cat << 'EOF_SVC' > /etc/systemd/system/locust-master.service
-[Unit]
-Description=Locust Master Service
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/python3 -m locust -f /home/locustfile.py --master --host=https://mervis.cloud
-Restart=always
-User=root
-
-[Install]
-WantedBy=multi-user.target
-EOF_SVC
-
-    systemctl daemon-reload
-    systemctl enable locust-master
-    systemctl start locust-master
-  EOF
+# 마스터 실행
+docker run -d --name locust-master --restart always \
+  -p 8089:8089 -p 5557:5557 -p 5558:5558 \
+  -v /mnt/locust:/mnt/locust \
+  locustio/locust -f /mnt/locust/locustfile.py --master --host=https://mervis.cloud
+EOF
+  , "\r", "")
 }
 
 # 3. Locust Worker 인스턴스 템플릿 (실제 부하 발생기)
@@ -94,7 +86,7 @@ resource "google_compute_instance_template" "locust_worker_tpl" {
   tags         = ["locust-worker"]
 
   disk {
-    source_image = "debian-cloud/debian-11"
+    source_image = "ubuntu-os-cloud/ubuntu-2204-lts"
     auto_delete  = true
     boot         = true
   }
@@ -104,13 +96,17 @@ resource "google_compute_instance_template" "locust_worker_tpl" {
     access_config {} 
   }
 
-  metadata_startup_script = <<-EOF
-    #!/bin/bash
-    apt-get update
-    apt-get install -y python3-pip
-    pip3 install locust
-    
-    cat << 'FILE' > /home/locustfile.py
+  # 워커 스크립트도 동일하게 \r 제거
+  metadata_startup_script = replace(<<-EOF
+#!/bin/bash
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update -y
+apt-get install -y docker.io
+
+mkdir -p /mnt/locust
+
+cat << 'FILE' > /mnt/locust/locustfile.py
 import time
 from locust import HttpUser, task, between
 
@@ -138,27 +134,12 @@ class WebsiteUser(HttpUser):
         self.client.get("/api/exit", name="/api/exit")
 FILE
 
-    # Systemd 서비스로 Worker 등록 (Master IP 자동 주입)
-    cat << 'EOF_SVC' > /etc/systemd/system/locust-worker.service
-[Unit]
-Description=Locust Worker Service
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/python3 -m locust -f /home/locustfile.py --worker --master-host=${google_compute_instance.locust_master.network_interface.0.network_ip}
-Restart=always
-RestartSec=5
-User=root
-
-[Install]
-WantedBy=multi-user.target
-EOF_SVC
-
-    systemctl daemon-reload
-    systemctl enable locust-worker
-    systemctl start locust-worker
-  EOF
+# 워커 실행 (Master IP 매핑)
+docker run -d --name locust-worker --restart always \
+  -v /mnt/locust:/mnt/locust \
+  locustio/locust -f /mnt/locust/locustfile.py --worker --master-host=${google_compute_instance.locust_master.network_interface.0.network_ip}
+EOF
+  , "\r", "")
 
   lifecycle {
     create_before_destroy = true
