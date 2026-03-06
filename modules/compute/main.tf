@@ -127,11 +127,11 @@ resource "google_compute_region_instance_group_manager" "serving_mig" {
     port = 80
   }
 
-  # 무중단 롤링 배포 정책 추가
+  # 무중단 롤링 배포 정책
   update_policy {
     type                  = "PROACTIVE"
     minimal_action        = "REPLACE"
-    max_surge_fixed       = 1
+    max_surge_fixed       = 3            # 리전 내 3개 영역(Zone) 밸런스
     max_unavailable_fixed = 0
     replacement_method    = "SUBSTITUTE"
   }
