@@ -55,7 +55,7 @@ resource "google_redis_instance" "queue_cache" {
 # ==========================================
 resource "google_compute_instance_template" "serving_tpl" {
   name_prefix  = "mervis-serving-tpl-"
-  machine_type = "e2-standard-4" # 대규모 스파이크 방어를 위한 체급 상향
+  machine_type = "e2-standard-2" # Quota(코어 수 제한) 회피 및 원활한 스케일아웃을 위해 2코어로 복구
   region       = var.region
 
   disk {
@@ -139,22 +139,21 @@ resource "google_compute_region_autoscaler" "serving_autoscaler" {
   target = google_compute_region_instance_group_manager.serving_mig.id
 
   autoscaling_policy {
-    max_replicas    = 20
-    min_replicas    = 1  # 비용 최적화: 야간/새벽 트래픽 없을 때는 1대로 축소
+    max_replicas    = 10  # Quota 에러 방지용으로 최대 10대(20코어)까지만 확장 허용
+    min_replicas    = 1  
 
     cooldown_period = 60
 
     cpu_utilization {
-      target = 0.5 # CPU 50% 초과 시 선제적 스케일아웃 (무중단 방어)
+      target = 0.5 
     }
 
-    # 낮 시간대에는 대규모 트래픽 대비 5대 예열
     scaling_schedules {
       name                  = "business-hours-prewarming"
-      min_required_replicas = 4  # 주간 4대 유지
-      schedule              = "0 9 * * 1-5" # 평일 오전 9시
+      min_required_replicas = 3  # 기본 3대
+      schedule              = "0 9 * * 1-5" 
       time_zone             = "Asia/Seoul"
-      duration_sec          = 32400 # 9시간 지속 (오후 6시까지)
+      duration_sec          = 32400 
       description           = "Scale up minimum instances during business hours for spike defense"
     }
   }
