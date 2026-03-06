@@ -35,7 +35,6 @@ resource "google_compute_health_check" "autohealing" {
 }
 
 # 대기열(Queue)용 Managed Redis 추가
-# variables.tf에 이미 있는 network_name을 가져와서 ID를 자동 추출
 data "google_compute_network" "mervis_vpc" {
   name = var.network_name
 }
@@ -46,7 +45,6 @@ resource "google_redis_instance" "queue_cache" {
   region         = var.region
   tier           = "BASIC"
   
-  # data 블록에서 추출한 네트워크 ID를 자동으로 주입
   authorized_network = data.google_compute_network.mervis_vpc.id
 }
 
@@ -55,7 +53,7 @@ resource "google_redis_instance" "queue_cache" {
 # ==========================================
 resource "google_compute_instance_template" "serving_tpl" {
   name_prefix  = "mervis-serving-tpl-"
-  machine_type = "e2-standard-2" # Quota(코어 수 제한) 회피 및 원활한 스케일아웃을 위해 2코어로 복구
+  machine_type = "e2-standard-2" 
   region       = var.region
 
   disk {
@@ -80,17 +78,14 @@ resource "google_compute_instance_template" "serving_tpl" {
     provisioning_model = "SPOT"
   }
 
-  # Startup Script: 서비스용
   metadata_startup_script = <<-EOT
     #!/bin/bash
     apt-get update && apt-get install -y docker.io
     gcloud auth configure-docker ${var.region}-docker.pkg.dev --quiet
     
-    # 디스크/메모리 지표 수집용
     curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
     bash add-google-cloud-ops-agent-repo.sh --also-install
     
-    # 시크릿 로드 및 Redis Host 추가
     export KIS_APP_KEY_REAL=$(gcloud secrets versions access latest --secret="mervis-kis-app-key-real")
     export KIS_APP_SECRET_REAL=$(gcloud secrets versions access latest --secret="mervis-kis-app-secret-real")
     export KIS_CANO_REAL=$(gcloud secrets versions access latest --secret="mervis-kis-cano-real")
@@ -99,7 +94,7 @@ resource "google_compute_instance_template" "serving_tpl" {
     export DISCORD_WEBHOOK_URL=$(gcloud secrets versions access latest --secret="mervis-discord-webhook")
     export REDIS_HOST=${google_redis_instance.queue_cache.host}
     
-    # Docker 실행: 서비스 모드 (REDIS_HOST 환경변수 주입)
+    # Flask 기본 서버 대신 Gunicorn + Gevent 조합으로 변경하여 동시성 처리량 극대화
     docker run -d --restart always --name mervis-core \
       -e KIS_APP_KEY_REAL="$KIS_APP_KEY_REAL" \
       -e KIS_APP_SECRET_REAL="$KIS_APP_SECRET_REAL" \
@@ -111,7 +106,7 @@ resource "google_compute_instance_template" "serving_tpl" {
       -e USER_NAME="Admin" \
       -e REDIS_HOST="$REDIS_HOST" \
       -p 80:8080 \
-      ${var.repo_url}/mervis-core:latest python app.py
+      ${var.repo_url}/mervis-core:latest gunicorn -w 4 -k gevent --worker-connections 1000 -b 0.0.0.0:8080 app:app
   EOT
   
   lifecycle { create_before_destroy = true }
@@ -124,22 +119,31 @@ resource "google_compute_region_instance_group_manager" "serving_mig" {
   
   version {
     instance_template = google_compute_instance_template.serving_tpl.id
+    name              = "primary"
   }
   
   named_port {
     name = "http"
     port = 80
   }
+
+  # 무중단 롤링 배포 정책 추가
+  update_policy {
+    type                  = "PROACTIVE"
+    minimal_action        = "REPLACE"
+    max_surge_fixed       = 1
+    max_unavailable_fixed = 0
+    replacement_method    = "SUBSTITUTE"
+  }
 }
 
-# Auto-scaling 정책 및 비용 최적화 스케줄링
 resource "google_compute_region_autoscaler" "serving_autoscaler" {
   name   = "mervis-serving-autoscaler"
   region = var.region
   target = google_compute_region_instance_group_manager.serving_mig.id
 
   autoscaling_policy {
-    max_replicas    = 10  # Quota 에러 방지용으로 최대 10대(20코어)까지만 확장 허용
+    max_replicas    = 10
     min_replicas    = 1  
 
     cooldown_period = 60
@@ -150,7 +154,7 @@ resource "google_compute_region_autoscaler" "serving_autoscaler" {
 
     scaling_schedules {
       name                  = "business-hours-prewarming"
-      min_required_replicas = 3  # 기본 3대
+      min_required_replicas = 3
       schedule              = "0 9 * * 1-5" 
       time_zone             = "Asia/Seoul"
       duration_sec          = 32400 
@@ -196,7 +200,6 @@ resource "google_compute_instance" "brain_vm" {
     apt-get update && apt-get install -y docker.io
     gcloud auth configure-docker ${var.region}-docker.pkg.dev --quiet
     
-    # 디스크/메모리 지표 수집용
     curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
     bash add-google-cloud-ops-agent-repo.sh --also-install
     
