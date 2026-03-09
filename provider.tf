@@ -5,12 +5,6 @@ terraform {
       version = ">= 4.0.0"
     }
   }
-  
-  # GCS 백엔드 활성화
-  backend "gcs" {
-    bucket  = "mervis-tfstate-bucket"
-    prefix  = "terraform/state"
-  }
 }
 
 provider "google" {
