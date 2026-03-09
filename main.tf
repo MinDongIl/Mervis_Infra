@@ -1,3 +1,10 @@
+terraform {
+  backend "gcs" {
+    bucket = "mervis-tfstate-bucket"
+    prefix = "terraform/state"
+  }
+}
+
 # 1. 네트워크 모듈
 module "network" {
   source     = "./modules/network"
@@ -23,6 +30,7 @@ module "compute" {
   subnet_serving_id  = module.network.subnet_serving_id
   subnet_training_id = module.network.subnet_training_id
   repo_url           = module.storage.repo_url
+  image_tag          = var.image_tag
 }
 
 # 4. 로드밸런서 모듈

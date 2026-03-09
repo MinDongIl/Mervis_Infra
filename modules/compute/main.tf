@@ -1,10 +1,8 @@
-# 1. 서비스 계정 및 권한 설정
 resource "google_service_account" "sa" {
   account_id   = "mervis-compute-sa"
   display_name = "Mervis Compute Service Account"
 }
 
-# IAM 권한들
 resource "google_project_iam_member" "artifact_reader" {
   project = var.project_id
   role    = "roles/artifactregistry.reader"
@@ -21,7 +19,6 @@ resource "google_project_iam_member" "secret_accessor" {
   member  = "serviceAccount:${google_service_account.sa.email}"
 }
 
-# 로드밸런서용 헬스 체크
 resource "google_compute_health_check" "autohealing" {
   name                = "mervis-autohealing-check"
   check_interval_sec  = 5
@@ -34,7 +31,6 @@ resource "google_compute_health_check" "autohealing" {
   }
 }
 
-# 대기열(Queue)용 Managed Redis 추가
 data "google_compute_network" "mervis_vpc" {
   name = var.network_name
 }
@@ -48,9 +44,6 @@ resource "google_redis_instance" "queue_cache" {
   authorized_network = data.google_compute_network.mervis_vpc.id
 }
 
-# ==========================================
-# 2. Serving Zone (MIG + Auto-scaling)
-# ==========================================
 resource "google_compute_instance_template" "serving_tpl" {
   name_prefix  = "mervis-serving-tpl-"
   machine_type = "e2-standard-2" 
@@ -94,7 +87,6 @@ resource "google_compute_instance_template" "serving_tpl" {
     export DISCORD_WEBHOOK_URL=$(gcloud secrets versions access latest --secret="mervis-discord-webhook")
     export REDIS_HOST=${google_redis_instance.queue_cache.host}
     
-    # Flask 기본 서버 대신 Gunicorn + Gevent 조합으로 변경하여 동시성 처리량 극대화
     docker run -d --restart always --name mervis-core \
       -e KIS_APP_KEY_REAL="$KIS_APP_KEY_REAL" \
       -e KIS_APP_SECRET_REAL="$KIS_APP_SECRET_REAL" \
@@ -106,7 +98,7 @@ resource "google_compute_instance_template" "serving_tpl" {
       -e USER_NAME="Admin" \
       -e REDIS_HOST="$REDIS_HOST" \
       -p 80:8080 \
-      ${var.repo_url}/mervis-core:latest gunicorn -w 4 -k gevent --worker-connections 1000 -b 0.0.0.0:8080 app:app
+      ${var.repo_url}/mervis-core:${var.image_tag} gunicorn -w 4 -k gevent --worker-connections 1000 -b 0.0.0.0:8080 app:app
   EOT
   
   lifecycle { create_before_destroy = true }
@@ -127,11 +119,10 @@ resource "google_compute_region_instance_group_manager" "serving_mig" {
     port = 80
   }
 
-  # 무중단 롤링 배포 정책
   update_policy {
     type                  = "PROACTIVE"
     minimal_action        = "REPLACE"
-    max_surge_fixed       = 3            # 리전 내 3개 영역(Zone) 밸런스
+    max_surge_fixed       = 3            
     max_unavailable_fixed = 0
     replacement_method    = "SUBSTITUTE"
   }
@@ -163,9 +154,6 @@ resource "google_compute_region_autoscaler" "serving_autoscaler" {
   }
 }
 
-# ==========================================
-# 3. Training Zone (Standalone VM)
-# ==========================================
 resource "google_compute_instance" "brain_vm" {
   name         = "mervis-brain"
   machine_type = "e2-medium"
@@ -219,7 +207,7 @@ resource "google_compute_instance" "brain_vm" {
       -e DISCORD_WEBHOOK_URL="$DISCORD_WEBHOOK_URL" \
       -e GOOGLE_CLOUD_PROJECT="${var.project_id}" \
       -e USER_NAME="Admin" \
-      ${var.repo_url}/mervis-core:latest
+      ${var.repo_url}/mervis-core:${var.image_tag}
   EOT
 }
 

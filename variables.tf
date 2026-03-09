@@ -20,3 +20,9 @@ variable "credentials_file" {
   type        = string
   default     = "./service_account.json"
 }
+
+variable "image_tag" {
+  description = "Docker image tag for mervis-core"
+  type        = string
+  default     = "latest"
+}
