@@ -44,4 +44,12 @@ module "lb" {
   
   # 도메인 이름
   domain_name        = "mervis.cloud"
+
+  security_policy_id = module.security.security_policy_id
+}
+
+# 5. 보안(Cloud Armor) 모듈 추가
+module "security" {
+  source     = "./modules/security"
+  project_id = var.project_id
 }

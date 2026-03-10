@@ -11,3 +11,8 @@ variable "domain_name" {
   type        = string
   default     = "mervis.cloud"
 }
+
+variable "security_policy_id" {
+  description = "Cloud Armor security policy ID"
+  type        = string
+}

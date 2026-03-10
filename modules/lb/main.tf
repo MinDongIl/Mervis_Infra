@@ -19,8 +19,11 @@ resource "google_compute_backend_service" "default" {
   load_balancing_scheme = "EXTERNAL"
   timeout_sec           = 30
   
+  # Cloud Armor 보안 정책 연결
+  security_policy = var.security_policy_id
+
   backend {
-    group = var.mig_instance_group  # Compute 모듈에서 받은 MIG 연결
+    group = var.mig_instance_group
   }
 
   health_checks = [google_compute_health_check.default.id]
