@@ -51,5 +51,4 @@ module "lb" {
 # 5. 보안(Cloud Armor) 모듈 추가
 module "security" {
   source     = "./modules/security"
-  project_id = var.project_id
 }
