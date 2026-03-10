@@ -52,3 +52,10 @@ module "lb" {
 module "security" {
   source     = "./modules/security"
 }
+
+# 6. 데이터베이스 모듈
+module "database" {
+  source     = "./modules/database"
+  project_id = var.project_id
+  region     = var.region
+}
