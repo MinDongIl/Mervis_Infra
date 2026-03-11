@@ -17,24 +17,28 @@
 
 ### 1. Multi-Region Disaster Recovery (Active-Passive)
 * 글로벌 HTTP(S) 로드밸런서를 기반으로 멀티 리전 분산 환경을 구축했습니다.
-* **Warm Standby:** 평상시에는 서울 리전(asia-northeast3)에서 100%의 트래픽을 처리하며, 도쿄 리전(asia-northeast1)에는 최소 인스턴스(1대)만 대기시켜 비용을 최적화합니다.
+* **Warm Standby:** 평상시에는 서울 리전(asia-northeast3)에서 100%의 트래픽을 처리하며, 도쿄 리전(asia-northeast1)에는 최소 인스턴스(1대)만 대기시켜 가용성과 비용 최적화를 동시에 달성합니다.
 * **Auto-Failover:** 서울 리전 데이터센터 전체 장애 발생 시, 로드밸런서의 상태 검사(Health Check)가 이를 감지하고 다운타임(500 에러) 없이 도쿄 리전으로 트래픽을 자동 우회시킵니다.
 
-### 2. Auto-Scaling & Self-Healing
-* **Scale-out/in:** CPU 사용률 50%를 임계치로 설정한 Managed Instance Group(MIG) 오토스케일러를 통해 트래픽 스파이크 시 서버를 동적으로 확장합니다.
-* **Self-Healing:** 애플리케이션 프리징(Hang) 발생 시 로드밸런서가 비정상(Unhealthy) 상태를 감지하고, 해당 좀비 인스턴스를 강제 종료한 뒤 즉각 재생성하여 가용성을 유지합니다.
+### 2. Auto-Scaling & FinOps (Cost Optimization)
+* **Dynamic Scale-out/in:** CPU 사용률 50%를 임계치로 설정한 Managed Instance Group(MIG) 오토스케일러를 통해, 대규모 트래픽 스파이크 발생 시 서버를 동적으로 확장하여 부하를 방어합니다.
+* **Spot VM Resilience:** 클라우드 비용을 획기적으로 절감하기 위해 Spot VM을 도입했습니다. 구글 자원 회수 정책에 의해 인스턴스가 강제 종료되더라도, MIG가 즉각 이를 감지하고 새로운 VM을 프로비저닝하여 서비스 중단 없이 복구합니다.
 
-### 3. Point-in-Time Recovery (PITR)
-* Cloud SQL(PostgreSQL)에 특정 시점 복구(PITR) 기능을 활성화했습니다.
-* 휴먼 에러(Drop Table 등)나 데이터 오염 발생 시, 트랜잭션 로그(WAL)를 기반으로 장애 발생 직전의 분 단위 시점으로 데이터를 클론(Clone) 및 복원할 수 있는 방어 체계를 갖추었습니다.
+### 3. Self-Healing & Zero-Downtime Deployment
+* **Self-Healing (자가 치유):** 애플리케이션 내부 스레드 프리징(Hang) 발생 시, 로드밸런서가 비정상(Unhealthy) 상태를 감지하고 해당 좀비 인스턴스를 즉시 사살 및 재생성하여 서비스 가용성을 유지합니다.
+* **Rolling Update & Auto-Rollback:** GitHub 변경 사항을 Cloud Build가 감지하여 컨테이너 빌드 및 MIG 롤링 배포를 수행합니다. 배포 중 문법 오류나 502 에러가 발생하면 헬스 체크 단계에서 신규 배포를 차단하고 기존 정상 버전으로 자동 롤백시킵니다.
 
-### 4. Cloud Armor WAF & Rate Limiting
-* 백엔드 서비스 전단에 Cloud Armor(웹 방화벽)를 배치하여 인프라를 보호합니다.
-* 단일 IP에서 1분당 100회 초과 요청 시 즉각 403 Forbidden으로 차단하는 Rate Limiting 규칙을 적용하여 악의적인 봇과 DDoS 공격을 무력화합니다.
+### 4. Zero-Trust Security & Access Control
+* **Cloud Armor WAF:** 백엔드 서비스 전단에 웹 방화벽을 배치하여 단일 IP에서 1분당 100회 초과 요청 시 즉각 403 Forbidden으로 차단, 악의적인 봇과 DDoS 공격을 무력화합니다.
+* **IAM Least Privilege & Secret Manager:** 환경변수에 민감한 정보(API Key, DB PW)를 하드코딩하지 않고 Secret Manager로 격리했습니다. 권한이 없는 비정상적인 접근 시 애플리케이션 기동을 즉시 차단(Fail Fast)하여 보안 사고를 원천 봉쇄합니다.
 
-### 5. Observability Pipeline
-* **Uptime Check:** 외부망(글로벌 프로브)에서 도메인(mervis.cloud)의 정상 응답 여부를 주기적으로 감시합니다.
-* **Log-based Alerts:** 시스템 지표(CPU/Disk 50% 초과) 및 로그 지표(로드밸런서 5xx 에러율)를 모니터링하여, 이상 징후 발생 시 SRE 팀의 Discord Webhook 및 이메일로 실시간 경보(Alert)를 발송합니다.
+### 5. Database Reliability (PITR)
+* Cloud SQL(PostgreSQL) 기반의 데이터 저장소에 특정 시점 복구(PITR) 기능을 활성화했습니다.
+* 휴먼 에러(Drop Table 등)나 악의적인 데이터 오염 발생 시, 트랜잭션 로그(WAL)를 기반으로 장애 발생 직전의 분 단위 시점을 역추적하여 데이터를 클론(Clone) 및 완전 복원할 수 있는 방어 체계를 갖추었습니다.
+
+### 6. Full-Stack Observability Pipeline
+* **Uptime Check:** 외부망(글로벌 프로브)에서 도메인(mervis.cloud)의 가동 시간 및 정상 응답 여부를 상시 감시합니다.
+* **Log-based & Resource Alerts:** 시스템 자원 지표(CPU/Disk 50% 초과) 및 로드밸런서 로그(5xx 에러율)를 실시간 모니터링합니다. 이상 징후 발생 시 SRE 팀의 Discord Webhook 및 이메일 채널로 즉각 경보(Alert)를 발송하여 신속한 장애 대응을 가능하게 합니다.
 
 ---
 
