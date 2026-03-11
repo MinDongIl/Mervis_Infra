@@ -29,7 +29,7 @@ resource "google_compute_security_policy" "mervis_ddos_armor" {
     }
     rate_limit_options {
       rate_limit_threshold {
-        count        = 10000
+        count        = 1000000
         interval_sec = 60
       }
       conform_action = "allow"
