@@ -4,7 +4,7 @@ resource "google_compute_security_policy" "mervis_ddos_armor" {
   name        = "mervis-ddos-protection-policy"
   description = "Cloud Armor policy to mitigate DDoS attacks and rate limit IPs"
 
-  # 기본 규칙: 모든 트래픽 허용 (우선순위가 가장 낮음)
+  # 모든 트래픽 허용 기본 규칙
   rule {
     action   = "allow"
     priority = "2147483647"
@@ -17,7 +17,9 @@ resource "google_compute_security_policy" "mervis_ddos_armor" {
     description = "Default allow all rule"
   }
 
-  # Rate Limiting 규칙: 부하 테스트를 위해 임시로 1분 동안 10000회 초과 시 차단으로 완화
+  /*
+  # 부하 테스트(INF-06) 진행을 위해 Rate Limiting 규칙 임시 비활성화 (주석 처리)
+  # 추후 DDoS 방어 시연(INF-07) 시 아래 주석 기호를 해제하여 즉시 원복 가능
   rule {
     action   = "rate_based_ban"
     priority = "100"
@@ -29,17 +31,18 @@ resource "google_compute_security_policy" "mervis_ddos_armor" {
     }
     rate_limit_options {
       rate_limit_threshold {
-        count        = 1000000
+        count        = 100
         interval_sec = 60
       }
       conform_action = "allow"
       exceed_action  = "deny(403)"
       enforce_on_key = "IP"
       
-      ban_duration_sec = 300 # 차단 시 5분 동안 유지
+      ban_duration_sec = 300 
     }
-    description = "Rate limit: Ban IP for 5 mins if requests > 10000 per min (Test Mode)"
+    description = "Rate limit: Ban IP for 5 mins if requests > 100 per min"
   }
+  */
 }
 
 output "security_policy_id" {
