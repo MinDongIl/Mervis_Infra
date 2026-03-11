@@ -17,7 +17,7 @@ resource "google_compute_security_policy" "mervis_ddos_armor" {
     description = "Default allow all rule"
   }
 
-  # Rate Limiting 규칙: 단일 IP에서 1분 동안 100회 초과 요청 시 차단 (403 반환)
+  # Rate Limiting 규칙: 부하 테스트를 위해 임시로 1분 동안 10000회 초과 시 차단으로 완화
   rule {
     action   = "rate_based_ban"
     priority = "100"
@@ -29,7 +29,7 @@ resource "google_compute_security_policy" "mervis_ddos_armor" {
     }
     rate_limit_options {
       rate_limit_threshold {
-        count        = 100
+        count        = 10000
         interval_sec = 60
       }
       conform_action = "allow"
@@ -38,7 +38,7 @@ resource "google_compute_security_policy" "mervis_ddos_armor" {
       
       ban_duration_sec = 300 # 차단 시 5분 동안 유지
     }
-    description = "Rate limit: Ban IP for 5 mins if requests > 100 per min"
+    description = "Rate limit: Ban IP for 5 mins if requests > 10000 per min (Test Mode)"
   }
 }
 
