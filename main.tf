@@ -1,3 +1,4 @@
+# main.tf
 terraform {
   backend "gcs" {
     bucket = "mervis-tfstate-bucket"
@@ -7,9 +8,9 @@ terraform {
 
 # 1. 네트워크 모듈
 module "network" {
-  source     = "./modules/network"
-  project_id = var.project_id
-  region     = var.region
+  source        = "./modules/network"
+  project_id    = var.project_id
+  region        = var.region
   lb_ip_address = module.lb.lb_ip_address
 }
 
@@ -22,13 +23,17 @@ module "storage" {
 
 # 3. 컴퓨팅 모듈
 module "compute" {
-  source     = "./modules/compute"
-  project_id = var.project_id
-  region     = var.region
+  source             = "./modules/compute"
+  project_id         = var.project_id
+  region             = var.region
   
-  network_name       = module.network.network_name
-  subnet_serving_id  = module.network.subnet_serving_id
-  subnet_training_id = module.network.subnet_training_id
+  network_name            = module.network.network_name
+  subnet_serving_id       = module.network.subnet_serving_id
+  subnet_training_id      = module.network.subnet_training_id
+  
+  # 도쿄 서브넷 연결 추가
+  subnet_serving_tokyo_id = module.network.subnet_serving_tokyo_id 
+  
   repo_url           = module.storage.repo_url
   image_tag          = var.image_tag
 }
@@ -39,12 +44,12 @@ module "lb" {
   project_id = var.project_id
   region     = var.region
   
-  # Compute 모듈의 출력값(MIG)을 LB에 전달
-  mig_instance_group = module.compute.serving_instance_group
+  mig_instance_group       = module.compute.serving_instance_group
   
-  # 도메인 이름
+  # 도쿄 MIG 연결 추가
+  mig_instance_group_tokyo = module.compute.serving_instance_group_tokyo 
+  
   domain_name        = "mervis.cloud"
-
   security_policy_id = module.security.security_policy_id
 }
 

@@ -1,9 +1,9 @@
-# 1. 고정 IP 예약
+# 고정 IP 예약
 resource "google_compute_global_address" "default" {
   name = "mervis-lb-ip"
 }
 
-# 2. SSL 인증서 (구글이 90일마다 알아서 갱신)
+# SSL 인증서
 resource "google_compute_managed_ssl_certificate" "default" {
   name = "mervis-ssl-cert"
   managed {
@@ -11,7 +11,7 @@ resource "google_compute_managed_ssl_certificate" "default" {
   }
 }
 
-# 3. 백엔드 서비스 (로드밸런서 -> 서비스 서버 연결)
+# 백엔드 서비스
 resource "google_compute_backend_service" "default" {
   name                  = "mervis-backend-service"
   protocol              = "HTTP"
@@ -19,17 +19,22 @@ resource "google_compute_backend_service" "default" {
   load_balancing_scheme = "EXTERNAL"
   timeout_sec           = 30
   
-  # Cloud Armor 보안 정책 연결
   security_policy = var.security_policy_id
 
+  # Main Region (서울)
   backend {
     group = var.mig_instance_group
+  }
+
+  # Standby Region (도쿄)
+  backend {
+    group = var.mig_instance_group_tokyo
   }
 
   health_checks = [google_compute_health_check.default.id]
 }
 
-# 4. 헬스 체크
+# Health Check
 resource "google_compute_health_check" "default" {
   name = "mervis-http-health-check"
   
@@ -42,20 +47,20 @@ resource "google_compute_health_check" "default" {
   }
 }
 
-# 5. URL 맵 (모든 트래픽을 백엔드로 전달)
+# URL Map
 resource "google_compute_url_map" "default" {
   name            = "mervis-url-map"
   default_service = google_compute_backend_service.default.id
 }
 
-# 6. HTTPS 프록시 (SSL 적용)
+# HTTPS 프록시
 resource "google_compute_target_https_proxy" "default" {
   name             = "mervis-https-proxy"
   url_map          = google_compute_url_map.default.id
   ssl_certificates = [google_compute_managed_ssl_certificate.default.id]
 }
 
-# 7. 포워딩 룰 (443 포트 개방)
+# Forwarding Rule
 resource "google_compute_global_forwarding_rule" "default" {
   name       = "mervis-forwarding-rule"
   target     = google_compute_target_https_proxy.default.id
