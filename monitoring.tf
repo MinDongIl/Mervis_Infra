@@ -45,18 +45,18 @@ resource "google_monitoring_alert_policy" "disk_space_high" {
   notification_channels = [google_monitoring_notification_channel.email_alert.id]
 }
 
-# CPU 사용률 50% 초과 경보
+# CPU 사용률 80% 초과 경보 (오토스케일링 임계치와 동기화)
 resource "google_monitoring_alert_policy" "cpu_usage_high" {
-  display_name = "Mervis CPU Usage Alert (> 50%)"
+  display_name = "Mervis CPU Usage Alert (> 80%)"
   combiner     = "OR"
 
   conditions {
-    display_name = "CPU utilization is over 50%"
+    display_name = "CPU utilization is over 80%"
     condition_threshold {
       filter          = "metric.type=\"compute.googleapis.com/instance/cpu/utilization\" AND resource.type=\"gce_instance\""
       duration        = "60s"
       comparison      = "COMPARISON_GT"
-      threshold_value = 0.5
+      threshold_value = 0.8
       
       aggregations {
         alignment_period   = "60s"
