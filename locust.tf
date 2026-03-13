@@ -1,3 +1,4 @@
+/*
 # 1. 방화벽 규칙: Locust UI(8089) 및 Master-Worker 통신(5557, 5558) 포트 개방
 resource "google_compute_firewall" "locust_fw" {
   name    = "allow-locust"
@@ -158,3 +159,4 @@ resource "google_compute_region_instance_group_manager" "locust_worker_mig" {
 
   target_size = 3 
 }
+*/

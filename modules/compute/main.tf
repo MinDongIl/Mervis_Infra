@@ -142,7 +142,7 @@ resource "google_compute_region_autoscaler" "serving_autoscaler" {
     min_replicas    = 1  
     cooldown_period = 60
     cpu_utilization {
-      target = 0.5 
+      target = 0.8 # 0.5에서 0.8로 상향
     }
     scaling_schedules {
       name                  = "business-hours-prewarming"
@@ -246,10 +246,10 @@ resource "google_compute_region_autoscaler" "serving_autoscaler_tokyo" {
 
   autoscaling_policy {
     max_replicas    = 5
-    min_replicas    = 1  
+    min_replicas    = 0
     cooldown_period = 60
     cpu_utilization {
-      target = 0.5 
+      target = 0.8 # 0.5에서 0.8로 상향
     }
   }
 }
